@@ -6,7 +6,9 @@ import com.replai.backend.dto.auth.RegisterRequest;
 import com.replai.backend.entity.Bot;
 import com.replai.backend.entity.User;
 import com.replai.backend.entity.VerificationCode;
+import com.replai.backend.dto.auth.ResendCodeResponseDTO;
 import com.replai.backend.dto.auth.VerifyRequest;
+import com.replai.backend.dto.auth.VerifyResponseDTO;
 import com.replai.backend.repository.UserRepository;
 import com.replai.backend.repository.VerificationCodeRepository;
 import com.replai.backend.security.JwtUtils;
@@ -93,7 +95,7 @@ public class AuthService {
     }
 
     @Transactional
-    public void verifyEmail(VerifyRequest request) {
+    public VerifyResponseDTO verifyEmail(VerifyRequest request) {
         VerificationCode verificationCode = codeRepository.findByCode(request.getCode())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid verification code"));
 
@@ -111,5 +113,37 @@ public class AuthService {
         codeRepository.delete(verificationCode);
 
         log.info("Email verified for user {}", user.getEmail());
+        return VerifyResponseDTO.builder()
+                .success(true)
+                .email(user.getEmail())
+                .build();
+    }
+
+    @Transactional
+    public ResendCodeResponseDTO resendVerificationCode(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "User not found"));
+
+        if (user.isEnabled()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already verified");
+        }
+
+        codeRepository.findByUser_Email(email).ifPresent(codeRepository::delete);
+
+        String code = String.format("%06d", new Random().nextInt(1000000));
+        VerificationCode verificationCode = VerificationCode.builder()
+                .code(code)
+                .user(user)
+                .expiryDate(LocalDateTime.now().plusMinutes(15))
+                .build();
+        codeRepository.save(verificationCode);
+
+        emailService.sendVerificationEmail(user, code);
+
+        log.info("Resent verification code for user {}", user.getEmail());
+        return ResendCodeResponseDTO.builder()
+                .success(true)
+                .email(user.getEmail())
+                .build();
     }
 }
