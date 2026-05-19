@@ -17,4 +17,8 @@ spring:
         format_sql: true
 
 server:
-  port: 8080
+  port: ${PORT:8080}
+
+ai:
+  service:
+    mock: ${AI_SERVICE_MOCK:true}

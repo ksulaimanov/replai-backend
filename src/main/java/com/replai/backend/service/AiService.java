@@ -19,7 +19,15 @@ public class AiService {
     @Value("${AI_SERVICE_URL:http://localhost:8000}")
     private String aiServiceUrl;
 
+    @Value("${ai.service.mock:true}")
+    private boolean mockAi;
+
     public String generateReply(String userMessage) {
+        if (mockAi) {
+            log.info("AI service is mocked, returning echo response");
+            return "Эхо-заглушка: бэкенд принял ваше сообщение: " + userMessage;
+        }
+
         try {
             Map<String, String> response = restTemplate.postForObject(
                     aiServiceUrl + "/chat",
@@ -37,4 +45,3 @@ public class AiService {
         return "Эхо-заглушка: бэкенд принял ваше сообщение: " + userMessage;
     }
 }
-
