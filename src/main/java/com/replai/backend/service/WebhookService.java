@@ -58,7 +58,7 @@ public class WebhookService {
                 .build();
         messageRepository.save(incoming);
 
-        String aiReply = aiService.generateReply(incomingText);
+        String aiReply = aiService.generateReply(bot.getId(), chat.getExternalChatId(), incomingText);
 
         Message outgoing = Message.builder()
                 .chat(chat)
@@ -71,4 +71,3 @@ public class WebhookService {
         telegramService.sendMessage(botToken, telegramChatId, aiReply);
     }
 }
-

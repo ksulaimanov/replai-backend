@@ -1,9 +1,9 @@
 package com.replai.backend.service;
 
+import com.replai.backend.dto.ai.AiChatRequestDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -22,16 +22,21 @@ public class AiService {
     @Value("${ai.service.mock:true}")
     private boolean mockAi;
 
-    public String generateReply(String userMessage) {
+    public String generateReply(Long botId, String chatId, String userMessage) {
         if (mockAi) {
             log.info("AI service is mocked, returning echo response");
             return "Эхо-заглушка: бэкенд принял ваше сообщение: " + userMessage;
         }
 
         try {
+            AiChatRequestDTO request = AiChatRequestDTO.builder()
+                    .botId(botId)
+                    .chatId(chatId)
+                    .message(userMessage)
+                    .build();
             Map<String, String> response = restTemplate.postForObject(
                     aiServiceUrl + "/chat",
-                    Map.of("message", userMessage),
+                    request,
                     Map.class
             );
 
