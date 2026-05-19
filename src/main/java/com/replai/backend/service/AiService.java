@@ -16,7 +16,7 @@ public class AiService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${AI_SERVICE_URL:http://localhost:8000}")
+    @Value("${ai.service.url:http://localhost:8000}")
     private String aiServiceUrl;
 
     @Value("${ai.service.mock:true}")

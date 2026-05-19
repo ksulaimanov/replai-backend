@@ -33,4 +33,5 @@ server:
 
 ai:
   service:
+    url: ${AI_SERVICE_URL:http://localhost:8000}
     mock: ${AI_SERVICE_MOCK:true}
