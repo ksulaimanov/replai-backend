@@ -5,18 +5,21 @@ import com.replai.backend.dto.auth.LoginRequest;
 import com.replai.backend.dto.auth.RegisterRequest;
 import com.replai.backend.entity.Bot;
 import com.replai.backend.entity.User;
-import com.replai.backend.entity.VerificationToken;
+import com.replai.backend.entity.VerificationCode;
+import com.replai.backend.dto.auth.VerifyRequest;
 import com.replai.backend.repository.UserRepository;
-import com.replai.backend.repository.VerificationTokenRepository;
+import com.replai.backend.repository.VerificationCodeRepository;
 import com.replai.backend.security.JwtUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.Random;
 
 @Slf4j
 @Service
@@ -24,7 +27,7 @@ import java.util.UUID;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final VerificationTokenRepository tokenRepository;
+    private final VerificationCodeRepository codeRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final EmailService emailService;
@@ -50,15 +53,15 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        String token = UUID.randomUUID().toString();
-        VerificationToken verificationToken = VerificationToken.builder()
-                .token(token)
+        String code = String.format("%06d", new Random().nextInt(1000000));
+        VerificationCode verificationCode = VerificationCode.builder()
+                .code(code)
                 .user(savedUser)
-                .expiryDate(LocalDateTime.now().plusHours(24))
+                .expiryDate(LocalDateTime.now().plusMinutes(15))
                 .build();
-        tokenRepository.save(verificationToken);
+        codeRepository.save(verificationCode);
 
-        emailService.sendVerificationEmail(savedUser, token);
+        emailService.sendVerificationEmail(savedUser, code);
 
         log.info("Registered company {} with email {}. Pending verification.", savedUser.getCompanyName(), savedUser.getEmail());
         return AuthResponse.builder()
@@ -73,7 +76,7 @@ public class AuthService {
                 .orElseThrow(() -> new IllegalStateException("Invalid email or password"));
 
         if (!user.isEnabled()) {
-            throw new IllegalStateException("Email не подтвержден");
+            throw new IllegalStateException("Email unverified");
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
@@ -90,18 +93,22 @@ public class AuthService {
     }
 
     @Transactional
-    public void verifyEmail(String token) {
-        VerificationToken verificationToken = tokenRepository.findByToken(token)
-                .orElseThrow(() -> new IllegalStateException("Invalid verification token"));
+    public void verifyEmail(VerifyRequest request) {
+        VerificationCode verificationCode = codeRepository.findByCode(request.getCode())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid verification code"));
 
-        if (verificationToken.isExpired()) {
-            throw new IllegalStateException("Verification token has expired");
+        if (verificationCode.isExpired()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Verification code has expired");
         }
 
-        User user = verificationToken.getUser();
+        if (!verificationCode.getUser().getEmail().equals(request.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid verfication code for this email");
+        }
+
+        User user = verificationCode.getUser();
         user.setEnabled(true);
         userRepository.save(user);
-        tokenRepository.delete(verificationToken);
+        codeRepository.delete(verificationCode);
 
         log.info("Email verified for user {}", user.getEmail());
     }

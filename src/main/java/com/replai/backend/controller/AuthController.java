@@ -3,16 +3,15 @@ package com.replai.backend.controller;
 import com.replai.backend.dto.auth.AuthResponse;
 import com.replai.backend.dto.auth.LoginRequest;
 import com.replai.backend.dto.auth.RegisterRequest;
+import com.replai.backend.dto.auth.VerifyRequest;
 import com.replai.backend.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -32,9 +31,9 @@ public class AuthController {
         return ResponseEntity.ok(authService.login(request));
     }
 
-    @GetMapping("/verify")
-    public ResponseEntity<String> verify(@RequestParam String token) {
-        authService.verifyEmail(token);
+    @PostMapping("/verify")
+    public ResponseEntity<String> verify(@Valid @RequestBody VerifyRequest request) {
+        authService.verifyEmail(request);
         return ResponseEntity.ok("Email verified successfully");
     }
 }
