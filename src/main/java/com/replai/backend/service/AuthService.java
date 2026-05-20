@@ -11,8 +11,10 @@ import com.replai.backend.dto.auth.VerifyRequest;
 import com.replai.backend.repository.UserRepository;
 import com.replai.backend.repository.VerificationCodeRepository;
 import com.replai.backend.security.JwtUtils;
+import com.replai.backend.exception.EmailNotVerifiedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -74,14 +76,14 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalStateException("Invalid email or password"));
+                .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
 
         if (!user.isEnabled()) {
-            throw new IllegalStateException("Email unverified");
+            throw new EmailNotVerifiedException("Email is not verified");
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new IllegalStateException("Invalid email or password");
+            throw new BadCredentialsException("Invalid email or password");
         }
 
         String token = jwtUtils.generateToken(user.getEmail());
