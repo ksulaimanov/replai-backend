@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
 @RestController
-@RequestMapping("/webhook/telegram")
+@RequestMapping("/api/webhook/telegram")
 @RequiredArgsConstructor
 public class WebhookController {
 

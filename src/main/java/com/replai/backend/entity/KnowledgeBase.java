@@ -3,6 +3,8 @@ package com.replai.backend.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "knowledge_bases")
 @Getter
@@ -20,6 +22,10 @@ public class KnowledgeBase {
 
     private String fileName;
 
+    private Long fileSize;
+
+    private Instant createdAt;
+
     @Column(length = 2000)
     private String fileUrl;
 
@@ -27,5 +33,9 @@ public class KnowledgeBase {
     @JoinColumn(name = "bot_id", nullable = false)
     private Bot bot;
 
+    @PrePersist
+    protected void onCreate() {
+        createdAt = Instant.now();
+    }
 }
 

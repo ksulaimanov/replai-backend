@@ -21,6 +21,7 @@ public class ChannelService {
     private final ChannelRepository channelRepository;
     private final BotRepository botRepository;
     private final SecurityUtils securityUtils;
+    private final TelegramService telegramService;
 
     @Transactional
     public void upsertTelegramChannel(TelegramChannelRequest request) {
@@ -31,7 +32,11 @@ public class ChannelService {
         channel.setType(ChannelType.TELEGRAM);
         channel.setToken(request.getToken());
         channelRepository.save(channel);
-        log.info("Telegram channel updated for user {}", securityUtils.getCurrentUserEmail());
+        
+        // Register webhook with Telegram
+        telegramService.setWebhook(request.getToken());
+        
+        log.info("Telegram channel updated and webhook registered for user {}", securityUtils.getCurrentUserEmail());
     }
 
     @Transactional

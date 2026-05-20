@@ -12,10 +12,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AiChatRequestDTO {
 
-    @JsonProperty("bot_id")
+    @JsonProperty("botId")
     private Long botId;
 
-    @JsonProperty("chat_id")
+    @JsonProperty("chatId")
     private String chatId;
 
     private String message;
