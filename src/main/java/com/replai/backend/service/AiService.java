@@ -29,10 +29,13 @@ public class AiService {
     @Value("${ai.service.internal-key}")
     private String internalApiKey;
 
+    private static final String FALLBACK_REPLY =
+            "Извините, я сейчас уточняю информацию у менеджера. Он свяжется с вами в ближайшее время 🙏";
+
     public String generateReply(Long botId, String chatId, String userMessage) {
         if (mockAi) {
-            log.info("AI service is mocked, returning echo response");
-            return "Эхо-заглушка: бэкенд принял ваше сообщение: " + userMessage;
+            log.info("AI mock mode: returning test echo for botId={}", botId);
+            return "Тест: " + userMessage;
         }
 
         try {
@@ -58,9 +61,9 @@ public class AiService {
                 return body.get("reply");
             }
         } catch (Exception ex) {
-            log.warn("AI service unavailable, using fallback response: {}", ex.getMessage());
+            log.warn("AI service unavailable (botId={}): {}", botId, ex.getMessage());
         }
 
-        return "Эхо-заглушка: бэкенд принял ваше сообщение: " + userMessage;
+        return FALLBACK_REPLY;
     }
 }

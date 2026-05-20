@@ -24,8 +24,9 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class WebhookService {
 
+    // Matches: +996 555 123 456 (KG), +998 90 123 45 67 (UZ), +7 (999) 123-45-67 (RU), 89991234567
     private static final Pattern PHONE_PATTERN = Pattern.compile(
-            "(?:\\+7|8)[\\s\\-]?\\(?\\d{3}\\)?[\\s\\-]?\\d{3}[\\s\\-]?\\d{2}[\\s\\-]?\\d{2}"
+            "(?:\\+\\d{1,4}|8)[\\s\\-]?\\(?\\d{2,5}\\)?[\\s\\-]?\\d{3,5}(?:[\\s\\-]?\\d{2,3}){1,3}"
     );
 
     private final BotRepository botRepository;
@@ -88,7 +89,11 @@ public class WebhookService {
         if (!matcher.find()) return;
         if (leadRepository.existsByBot_IdAndExternalChatId(bot.getId(), externalChatId)) return;
 
-        String phone = matcher.group().replaceAll("[\\s\\-()]", "");
+        String raw = matcher.group().trim();
+        boolean hasPlus = raw.startsWith("+");
+        String digits = raw.replaceAll("[^\\d]", "");
+        if (digits.length() < 7 || digits.length() > 15) return;
+        String phone = hasPlus ? "+" + digits : digits;
         String name = buildName(from);
 
         Lead lead = Lead.builder()

@@ -28,7 +28,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         log.warn("File upload rejected — size exceeds limit: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
-                .body(new ErrorResponse("FILE_TOO_LARGE", "Файл превышает допустимый размер 20 МБ"));
+                .body(new ErrorResponse("FILE_TOO_LARGE", "Файл превышает допустимый размер 10 МБ"));
     }
 
     @ExceptionHandler(IllegalStateException.class)
