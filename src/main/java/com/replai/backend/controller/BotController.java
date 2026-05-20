@@ -1,10 +1,13 @@
 package com.replai.backend.controller;
 
+import com.replai.backend.dto.analytics.AnalyticsResponse;
 import com.replai.backend.dto.bot.BotResponse;
 import com.replai.backend.dto.bot.UpdateBotSettingsRequest;
 import com.replai.backend.dto.knowledgebase.KnowledgeBaseUploadResponse;
+import com.replai.backend.dto.lead.LeadResponse;
 import com.replai.backend.service.BotService;
 import com.replai.backend.service.KnowledgeBaseService;
+import com.replai.backend.service.LeadService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -21,6 +24,7 @@ public class BotController {
 
     private final BotService botService;
     private final KnowledgeBaseService knowledgeBaseService;
+    private final LeadService leadService;
 
     @GetMapping("/config")
     public ResponseEntity<BotResponse> getBot() {
@@ -47,5 +51,14 @@ public class BotController {
         knowledgeBaseService.delete(fileId);
         return ResponseEntity.noContent().build();
     }
-}
 
+    @GetMapping("/leads")
+    public ResponseEntity<List<LeadResponse>> getLeads() {
+        return ResponseEntity.ok(leadService.getLeads());
+    }
+
+    @GetMapping("/analytics")
+    public ResponseEntity<AnalyticsResponse> getAnalytics() {
+        return ResponseEntity.ok(leadService.getAnalytics());
+    }
+}

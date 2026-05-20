@@ -29,7 +29,7 @@ public class TelegramWebhookUpdate {
         private Long messageId;
 
         private TelegramChat chat;
-
+        private TelegramUser from;
         private String text;
     }
 
@@ -41,5 +41,21 @@ public class TelegramWebhookUpdate {
     public static class TelegramChat {
         private Long id;
     }
-}
 
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class TelegramUser {
+        private Long id;
+
+        @JsonProperty("first_name")
+        private String firstName;
+
+        @JsonProperty("last_name")
+        private String lastName;
+
+        private String username;
+    }
+}

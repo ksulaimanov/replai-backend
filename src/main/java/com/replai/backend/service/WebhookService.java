@@ -3,10 +3,12 @@ package com.replai.backend.service;
 import com.replai.backend.dto.telegram.TelegramWebhookUpdate;
 import com.replai.backend.entity.Bot;
 import com.replai.backend.entity.Chat;
+import com.replai.backend.entity.Lead;
 import com.replai.backend.entity.Message;
 import com.replai.backend.entity.SourceChannel;
 import com.replai.backend.repository.BotRepository;
 import com.replai.backend.repository.ChatRepository;
+import com.replai.backend.repository.LeadRepository;
 import com.replai.backend.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,15 +16,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class WebhookService {
 
+    private static final Pattern PHONE_PATTERN = Pattern.compile(
+            "(?:\\+7|8)[\\s\\-]?\\(?\\d{3}\\)?[\\s\\-]?\\d{3}[\\s\\-]?\\d{2}[\\s\\-]?\\d{2}"
+    );
+
     private final BotRepository botRepository;
     private final ChatRepository chatRepository;
     private final MessageRepository messageRepository;
+    private final LeadRepository leadRepository;
     private final AiService aiService;
     private final TelegramService telegramService;
 
@@ -58,6 +67,8 @@ public class WebhookService {
                 .build();
         messageRepository.save(incoming);
 
+        extractLead(bot, externalChatId, incomingText, update.getMessage().getFrom());
+
         String aiReply = aiService.generateReply(bot.getId(), chat.getExternalChatId(), incomingText);
 
         Message outgoing = Message.builder()
@@ -69,5 +80,35 @@ public class WebhookService {
         messageRepository.save(outgoing);
 
         telegramService.sendMessage(botToken, telegramChatId, aiReply);
+    }
+
+    private void extractLead(Bot bot, String externalChatId, String text,
+                              TelegramWebhookUpdate.TelegramUser from) {
+        Matcher matcher = PHONE_PATTERN.matcher(text);
+        if (!matcher.find()) return;
+        if (leadRepository.existsByBot_IdAndExternalChatId(bot.getId(), externalChatId)) return;
+
+        String phone = matcher.group().replaceAll("[\\s\\-()]", "");
+        String name = buildName(from);
+
+        Lead lead = Lead.builder()
+                .bot(bot)
+                .externalChatId(externalChatId)
+                .phone(phone)
+                .name(name)
+                .createdAt(Instant.now())
+                .build();
+        leadRepository.save(lead);
+        log.info("Lead captured: chatId={} phone={}", externalChatId, phone);
+    }
+
+    private String buildName(TelegramWebhookUpdate.TelegramUser from) {
+        if (from == null) return null;
+        StringBuilder sb = new StringBuilder();
+        if (from.getFirstName() != null) sb.append(from.getFirstName());
+        if (from.getLastName() != null) sb.append(" ").append(from.getLastName());
+        String full = sb.toString().trim();
+        if (!full.isEmpty()) return full;
+        return from.getUsername() != null ? "@" + from.getUsername() : null;
     }
 }

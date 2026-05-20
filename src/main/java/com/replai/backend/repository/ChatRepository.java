@@ -9,5 +9,5 @@ import java.util.Optional;
 @Repository
 public interface ChatRepository extends JpaRepository<Chat, Long> {
     Optional<Chat> findByExternalChatId(String externalChatId);
+    long countByBot_Id(Long botId);
 }
-
