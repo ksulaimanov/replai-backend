@@ -1,0 +1,9 @@
+.git
+.idea
+*.iml
+*.ipr
+*.iws
+target/
+.env
+.env.example
+*.md
