@@ -1,9 +1,9 @@
-spring:
+//spring:
   application:
     name: replai-backend
 
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/botflow}
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/botflow-postgres}
     username: ${DATABASE_USERNAME:postgres}
     password: ${DATABASE_PASSWORD:root}
     driver-class-name: org.postgresql.Driver
@@ -31,7 +31,13 @@ spring:
 server:
   port: ${PORT:8080}
 
+app:
+  domain: ${APP_DOMAIN:http://localhost:8080}
+  storage:
+    local-path: ${STORAGE_LOCAL_PATH:}
+
 ai:
   service:
     url: ${AI_SERVICE_URL:http://localhost:8000}
-    mock: ${AI_SERVICE_MOCK:true}
+    mock: ${AI_SERVICE_MOCK:false}
+    internal-key: ${AI_SERVICE_INTERNAL_KEY:}
