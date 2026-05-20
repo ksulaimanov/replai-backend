@@ -8,7 +8,6 @@ import com.replai.backend.entity.User;
 import com.replai.backend.entity.VerificationCode;
 import com.replai.backend.dto.auth.ResendCodeResponseDTO;
 import com.replai.backend.dto.auth.VerifyRequest;
-import com.replai.backend.dto.auth.VerifyResponseDTO;
 import com.replai.backend.repository.UserRepository;
 import com.replai.backend.repository.VerificationCodeRepository;
 import com.replai.backend.security.JwtUtils;
@@ -95,7 +94,7 @@ public class AuthService {
     }
 
     @Transactional
-    public VerifyResponseDTO verifyEmail(VerifyRequest request) {
+    public AuthResponse verifyEmail(VerifyRequest request) {
         VerificationCode verificationCode = codeRepository.findByCode(request.getCode())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid verification code"));
 
@@ -112,10 +111,12 @@ public class AuthService {
         userRepository.save(user);
         codeRepository.delete(verificationCode);
 
+        String token = jwtUtils.generateToken(user.getEmail());
         log.info("Email verified for user {}", user.getEmail());
-        return VerifyResponseDTO.builder()
-                .success(true)
+        return AuthResponse.builder()
+                .token(token)
                 .email(user.getEmail())
+                .companyName(user.getCompanyName())
                 .build();
     }
 

@@ -6,7 +6,6 @@ import com.replai.backend.dto.auth.RegisterRequest;
 import com.replai.backend.dto.auth.ResendCodeRequestDTO;
 import com.replai.backend.dto.auth.ResendCodeResponseDTO;
 import com.replai.backend.dto.auth.VerifyRequest;
-import com.replai.backend.dto.auth.VerifyResponseDTO;
 import com.replai.backend.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +34,7 @@ public class AuthController {
     }
 
     @PostMapping("/verify-email")
-    public ResponseEntity<VerifyResponseDTO> verify(@Valid @RequestBody VerifyRequest request) {
+    public ResponseEntity<AuthResponse> verify(@Valid @RequestBody VerifyRequest request) {
         return ResponseEntity.ok(authService.verifyEmail(request));
     }
 
