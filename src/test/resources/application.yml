@@ -18,3 +18,10 @@ spring:
           auth: false
           starttls:
             enable: false
+
+app:
+  domain: http://localhost:8080
+
+ai:
+  service:
+    internal-key: test
