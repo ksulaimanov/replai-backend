@@ -1,12 +1,15 @@
 package com.replai.backend.service;
 
+import com.replai.backend.dto.ai.AiChatResponseDTO;
 import com.replai.backend.dto.telegram.TelegramWebhookUpdate;
 import com.replai.backend.entity.Bot;
+import com.replai.backend.entity.Channel;
 import com.replai.backend.entity.Chat;
+import com.replai.backend.entity.ChatStatus;
 import com.replai.backend.entity.Lead;
 import com.replai.backend.entity.Message;
 import com.replai.backend.entity.SourceChannel;
-import com.replai.backend.repository.BotRepository;
+import com.replai.backend.repository.ChannelRepository;
 import com.replai.backend.repository.ChatRepository;
 import com.replai.backend.repository.LeadRepository;
 import com.replai.backend.repository.MessageRepository;
@@ -29,7 +32,7 @@ public class WebhookService {
             "(?:\\+\\d{1,4}|8)[\\s\\-]?\\(?\\d{2,5}\\)?[\\s\\-]?\\d{3,5}(?:[\\s\\-]?\\d{2,3}){1,3}"
     );
 
-    private final BotRepository botRepository;
+    private final ChannelRepository channelRepository;
     private final ChatRepository chatRepository;
     private final MessageRepository messageRepository;
     private final LeadRepository leadRepository;
@@ -43,10 +46,9 @@ public class WebhookService {
             return;
         }
 
-        Bot bot = botRepository.findAll().stream()
-                .filter(candidate -> candidate.getChannels().stream().anyMatch(channel -> botToken.equals(channel.getToken())))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Bot not found for provided token"));
+        Channel channel = channelRepository.findByToken(botToken)
+                .orElseThrow(() -> new IllegalStateException("No channel registered for token"));
+        Bot bot = channel.getBot();
 
         Long telegramChatId = update.getMessage().getChat().getId();
         String externalChatId = String.valueOf(telegramChatId);
@@ -60,27 +62,39 @@ public class WebhookService {
                         .createdAt(Instant.now())
                         .build()));
 
-        Message incoming = Message.builder()
+        messageRepository.save(Message.builder()
                 .chat(chat)
                 .content(incomingText)
                 .isFromClient(true)
                 .timestamp(Instant.now())
-                .build();
-        messageRepository.save(incoming);
+                .build());
 
         extractLead(bot, externalChatId, incomingText, update.getMessage().getFrom());
 
-        String aiReply = aiService.generateReply(bot.getId(), chat.getExternalChatId(), incomingText);
+        AiChatResponseDTO aiResponse = aiService.generateReply(
+                bot.getId(), externalChatId, incomingText, bot.getSystemPrompt());
 
-        Message outgoing = Message.builder()
+        messageRepository.save(Message.builder()
                 .chat(chat)
-                .content(aiReply)
+                .content(aiResponse.getReply())
                 .isFromClient(false)
                 .timestamp(Instant.now())
-                .build();
-        messageRepository.save(outgoing);
+                .build());
 
-        telegramService.sendMessage(botToken, telegramChatId, aiReply);
+        if (aiResponse.isLead() && chat.getStatus() != ChatStatus.HOT_LEAD) {
+            chat.setStatus(ChatStatus.HOT_LEAD);
+            chatRepository.save(chat);
+            log.info("HOT_LEAD detected for chatId={} botId={}: {}",
+                    externalChatId, bot.getId(), aiResponse.getLeadSummary());
+        }
+
+        String[] parts = aiResponse.getReply().split("\\|\\|\\|");
+        for (String part : parts) {
+            String text = part.strip();
+            if (!text.isEmpty()) {
+                telegramService.sendMessage(botToken, telegramChatId, text);
+            }
+        }
     }
 
     private void extractLead(Bot bot, String externalChatId, String text,
@@ -96,14 +110,13 @@ public class WebhookService {
         String phone = hasPlus ? "+" + digits : digits;
         String name = buildName(from);
 
-        Lead lead = Lead.builder()
+        leadRepository.save(Lead.builder()
                 .bot(bot)
                 .externalChatId(externalChatId)
                 .phone(phone)
                 .name(name)
                 .createdAt(Instant.now())
-                .build();
-        leadRepository.save(lead);
+                .build());
         log.info("Lead captured: chatId={} phone={}", externalChatId, phone);
     }
 

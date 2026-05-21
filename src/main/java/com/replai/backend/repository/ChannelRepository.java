@@ -10,5 +10,7 @@ import java.util.Optional;
 @Repository
 public interface ChannelRepository extends JpaRepository<Channel, Long> {
     Optional<Channel> findByBot_IdAndType(Long botId, ChannelType type);
+
+    Optional<Channel> findByToken(String token);
 }
 

@@ -19,5 +19,8 @@ public class AiChatRequestDTO {
     private String chatId;
 
     private String message;
+
+    @JsonProperty("systemPrompt")
+    private String systemPrompt;
 }
 

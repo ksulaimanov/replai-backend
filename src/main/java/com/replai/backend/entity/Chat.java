@@ -31,6 +31,11 @@ public class Chat {
 
     private Instant createdAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private ChatStatus status = ChatStatus.ACTIVE;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bot_id", nullable = false)
     private Bot bot;

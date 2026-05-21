@@ -1,6 +1,7 @@
 package com.replai.backend.service;
 
 import com.replai.backend.dto.ai.AiChatRequestDTO;
+import com.replai.backend.dto.ai.AiChatResponseDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,8 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -28,6 +27,11 @@ public class AiService {
         return new RestTemplate(factory);
     }
 
+    private static final AiChatResponseDTO FALLBACK =
+            new AiChatResponseDTO(
+                    "Извините, я сейчас уточняю информацию у менеджера. Он свяжется с вами в ближайшее время 🙏",
+                    false, null);
+
     @Value("${ai.service.url:http://localhost:8000}")
     private String aiServiceUrl;
 
@@ -37,13 +41,10 @@ public class AiService {
     @Value("${ai.service.internal-key}")
     private String internalApiKey;
 
-    private static final String FALLBACK_REPLY =
-            "Извините, я сейчас уточняю информацию у менеджера. Он свяжется с вами в ближайшее время 🙏";
-
-    public String generateReply(Long botId, String chatId, String userMessage) {
+    public AiChatResponseDTO generateReply(Long botId, String chatId, String userMessage, String systemPrompt) {
         if (mockAi) {
-            log.info("AI mock mode: returning test echo for botId={}", botId);
-            return "Тест: " + userMessage;
+            log.info("AI mock mode: returning echo for botId={}", botId);
+            return new AiChatResponseDTO("Тест: " + userMessage, false, null);
         }
 
         try {
@@ -51,27 +52,28 @@ public class AiService {
                     .botId(botId)
                     .chatId(chatId)
                     .message(userMessage)
+                    .systemPrompt(systemPrompt)
                     .build();
 
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Internal-Key", internalApiKey);
             HttpEntity<AiChatRequestDTO> entity = new HttpEntity<>(request, headers);
 
-            ResponseEntity<Map> response = restTemplate.exchange(
+            ResponseEntity<AiChatResponseDTO> response = restTemplate.exchange(
                     aiServiceUrl + "/chat/",
                     HttpMethod.POST,
                     entity,
-                    Map.class
+                    AiChatResponseDTO.class
             );
 
-            Map<String, String> body = response.getBody();
-            if (body != null && body.get("reply") != null) {
-                return body.get("reply");
+            AiChatResponseDTO body = response.getBody();
+            if (body != null && body.getReply() != null) {
+                return body;
             }
         } catch (Exception ex) {
             log.warn("AI service unavailable (botId={}): {}", botId, ex.getMessage());
         }
 
-        return FALLBACK_REPLY;
+        return FALLBACK;
     }
 }

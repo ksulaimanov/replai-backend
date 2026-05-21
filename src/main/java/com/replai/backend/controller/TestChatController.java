@@ -28,7 +28,7 @@ public class TestChatController {
 
         BotResponse bot = botService.getCurrentBot();
         String sessionId = "web_test_" + securityUtils.getCurrentUserEmail().hashCode();
-        String reply = aiService.generateReply(bot.getId(), sessionId, message);
+        String reply = aiService.generateReply(bot.getId(), sessionId, message, bot.getSystemPrompt()).getReply();
 
         return ResponseEntity.ok(Map.of("reply", reply));
     }
