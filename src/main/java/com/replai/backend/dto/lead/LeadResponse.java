@@ -15,4 +15,7 @@ public class LeadResponse {
     private String phone;
     private String externalChatId;
     private Instant createdAt;
+    private Long chatId;
+    private String status;
+    private String leadSummary;
 }

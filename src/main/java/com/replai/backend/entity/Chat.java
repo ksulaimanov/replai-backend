@@ -36,6 +36,9 @@ public class Chat {
     @Builder.Default
     private ChatStatus status = ChatStatus.ACTIVE;
 
+    @Column(length = 500)
+    private String leadSummary;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bot_id", nullable = false)
     private Bot bot;

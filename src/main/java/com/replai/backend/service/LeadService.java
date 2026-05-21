@@ -3,6 +3,8 @@ package com.replai.backend.service;
 import com.replai.backend.dto.analytics.AnalyticsResponse;
 import com.replai.backend.dto.lead.LeadResponse;
 import com.replai.backend.entity.Bot;
+import com.replai.backend.entity.Chat;
+import com.replai.backend.entity.ChatStatus;
 import com.replai.backend.repository.BotRepository;
 import com.replai.backend.repository.ChatRepository;
 import com.replai.backend.repository.LeadRepository;
@@ -29,13 +31,21 @@ public class LeadService {
         Bot bot = getBotForCurrentUser();
         return leadRepository.findByBot_IdOrderByCreatedAtDesc(bot.getId())
                 .stream()
-                .map(l -> LeadResponse.builder()
-                        .id(l.getId())
-                        .name(l.getName())
-                        .phone(l.getPhone())
-                        .externalChatId(l.getExternalChatId())
-                        .createdAt(l.getCreatedAt())
-                        .build())
+                .map(lead -> {
+                    Chat chat = chatRepository
+                            .findByBot_IdAndExternalChatId(bot.getId(), lead.getExternalChatId())
+                            .orElse(null);
+                    return LeadResponse.builder()
+                            .id(lead.getId())
+                            .name(lead.getName())
+                            .phone(lead.getPhone())
+                            .externalChatId(lead.getExternalChatId())
+                            .createdAt(lead.getCreatedAt())
+                            .chatId(chat != null ? chat.getId() : null)
+                            .status(chat != null ? chat.getStatus().name() : ChatStatus.ACTIVE.name())
+                            .leadSummary(chat != null ? chat.getLeadSummary() : null)
+                            .build();
+                })
                 .toList();
     }
 
