@@ -25,6 +25,9 @@ public class Channel {
     @Column(length = 2000)
     private String token;
 
+    @Column(length = 64)
+    private String webhookSecret;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bot_id", nullable = false)
     private Bot bot;

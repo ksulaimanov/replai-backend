@@ -13,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -28,14 +30,15 @@ public class ChannelService {
         Bot bot = getBotForCurrentUser();
         Channel channel = channelRepository.findByBot_IdAndType(bot.getId(), ChannelType.TELEGRAM)
                 .orElseGet(Channel::new);
+        String secret = UUID.randomUUID().toString().replace("-", "");
         channel.setBot(bot);
         channel.setType(ChannelType.TELEGRAM);
         channel.setToken(request.getToken());
+        channel.setWebhookSecret(secret);
         channelRepository.save(channel);
-        
-        // Register webhook with Telegram
-        telegramService.setWebhook(request.getToken());
-        
+
+        telegramService.setWebhook(request.getToken(), secret);
+
         log.info("Telegram channel updated and webhook registered for user {}", securityUtils.getCurrentUserEmail());
     }
 

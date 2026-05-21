@@ -6,9 +6,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Slf4j
@@ -21,15 +23,25 @@ public class TelegramService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public void setWebhook(String botToken) {
+    public void setWebhook(String botToken, String secretToken) {
         String webhookUrl = String.format("%s/api/webhook/telegram/%s", domain, botToken);
-        String apiUrl = String.format("https://api.telegram.org/bot%s/setWebhook?url=%s", botToken, webhookUrl);
+        String apiUrl = String.format("https://api.telegram.org/bot%s/setWebhook", botToken);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("url", webhookUrl);
+        payload.put("secret_token", secretToken);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
 
         try {
-            Map response = restTemplate.getForObject(apiUrl, Map.class);
-            boolean ok = Boolean.TRUE.equals(response != null ? response.get("ok") : null);
+            ResponseEntity<Map> response = restTemplate.postForEntity(apiUrl, entity, Map.class);
+            Map body = response.getBody();
+            boolean ok = Boolean.TRUE.equals(body != null ? body.get("ok") : null);
             if (!ok) {
-                String description = response != null ? String.valueOf(response.get("description")) : "null response";
+                String description = body != null ? String.valueOf(body.get("description")) : "null response";
                 log.error("Telegram rejected webhook registration: {}", description);
                 throw new IllegalStateException("Telegram setWebhook failed: " + description);
             }
@@ -57,4 +69,3 @@ public class TelegramService {
         log.info("Telegram message sent to chat {}", chatId);
     }
 }
-

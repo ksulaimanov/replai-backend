@@ -12,6 +12,11 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(WebhookSecretInvalidException.class)
+    public ResponseEntity<Void> handleWebhookSecretInvalid(WebhookSecretInvalidException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    }
+
     @ExceptionHandler(EmailNotVerifiedException.class)
     public ResponseEntity<ErrorResponse> handleEmailNotVerified(EmailNotVerifiedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
