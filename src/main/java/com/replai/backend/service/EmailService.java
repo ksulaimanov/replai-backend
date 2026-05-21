@@ -1,32 +1,36 @@
 package com.replai.backend.service;
 
 import com.replai.backend.entity.User;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class EmailService {
+
+    private static final String BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
     @Value("${MAIL_FROM:no-reply@replai.app}")
     private String mailFrom;
 
-    private final JavaMailSender javaMailSender;
+    @Value("${MAIL_PASSWORD:}")
+    private String brevoApiKey;
+
+    private final RestTemplate restTemplate = new RestTemplate();
 
     public void sendVerificationEmail(User user, String code) {
         try {
-            MimeMessage message = javaMailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(mailFrom);
-            helper.setTo(user.getEmail());
-            helper.setSubject("Код подтверждения регистрации в replAI");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+            headers.set("api-key", brevoApiKey);
 
             String htmlContent = """
                 <div style="font-family: 'Inter', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff;">
@@ -47,12 +51,20 @@ public class EmailService {
                 </div>
                 """;
 
-            helper.setText(htmlContent, true);
-            javaMailSender.send(message);
-            log.info("Verification email sent to {}", user.getEmail());
-        } catch (MessagingException e) {
-            log.error("Failed to send verification email to {}", user.getEmail(), e);
-            throw new RuntimeException("Failed to send verification email", e);
+            Map<String, Object> payload = Map.of(
+                "sender", Map.of("name", "replAI", "email", mailFrom),
+                "to", List.of(Map.of("email", user.getEmail())),
+                "subject", "Код подтверждения регистрации в replAI",
+                "htmlContent", htmlContent
+            );
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(BREVO_API_URL, request, String.class);
+            log.info("Verification email sent to {} via Brevo, status={}", user.getEmail(), response.getStatusCode());
+        } catch (RestClientException e) {
+            log.error("Brevo API call failed for {}: {}", user.getEmail(), e.getMessage());
+        } catch (Exception e) {
+            log.error("Unexpected error sending verification email to {}: {}", user.getEmail(), e.getMessage());
         }
     }
 }
