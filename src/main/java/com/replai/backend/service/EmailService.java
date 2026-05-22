@@ -55,6 +55,14 @@ public class EmailService {
               <p style="font-size: 13px; color: #9CA3AF; text-align: center; margin-bottom: 0;">
                 Код действителен 15 минут. Если вы не регистрировались — просто проигнорируйте это письмо.
               </p>
+              <div style="margin-top: 28px; padding-top: 20px; border-top: 1px solid #F0EBF8; text-align: center;">
+                <p style="font-size: 11px; color: #C4B5FD; margin-bottom: 6px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;">Поддержка</p>
+                <p style="font-size: 12px; color: #9CA3AF; margin: 0;">
+                  Email: <a href="mailto:ksulaimanov.dev@gmail.com" style="color: #42008A; text-decoration: none; font-weight: 500;">ksulaimanov.dev@gmail.com</a>
+                  &nbsp;&middot;&nbsp;
+                  Telegram: <a href="https://t.me/ksulaimanov" style="color: #42008A; text-decoration: none; font-weight: 500;">@ksulaimanov</a>
+                </p>
+              </div>
             </div>
             """;
 
