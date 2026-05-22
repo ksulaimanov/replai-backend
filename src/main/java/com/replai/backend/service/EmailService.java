@@ -29,6 +29,9 @@ public class EmailService {
 
     @PostConstruct
     void init() {
+        if (brevoApiKey != null) {
+            brevoApiKey = brevoApiKey.trim();
+        }
         log.info("Initializing Brevo with key length: {}",
                 brevoApiKey != null ? brevoApiKey.length() : 0);
     }
