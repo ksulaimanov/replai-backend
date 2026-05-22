@@ -56,14 +56,7 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        String code = String.format("%06d", new Random().nextInt(1000000));
-        VerificationCode verificationCode = VerificationCode.builder()
-                .code(code)
-                .user(savedUser)
-                .expiryDate(LocalDateTime.now().plusMinutes(15))
-                .build();
-        codeRepository.save(verificationCode);
-
+        String code = upsertVerificationCode(savedUser);
         emailService.sendVerificationEmail(savedUser, code);
 
         log.info("Registered company {} with email {}. Pending verification.", savedUser.getCompanyName(), savedUser.getEmail());
@@ -131,16 +124,7 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already verified");
         }
 
-        codeRepository.findByUser_Email(email).ifPresent(codeRepository::delete);
-
-        String code = String.format("%06d", new Random().nextInt(1000000));
-        VerificationCode verificationCode = VerificationCode.builder()
-                .code(code)
-                .user(user)
-                .expiryDate(LocalDateTime.now().plusMinutes(15))
-                .build();
-        codeRepository.save(verificationCode);
-
+        String code = upsertVerificationCode(user);
         emailService.sendVerificationEmail(user, code);
 
         log.info("Resent verification code for user {}", user.getEmail());
@@ -148,5 +132,15 @@ public class AuthService {
                 .success(true)
                 .email(user.getEmail())
                 .build();
+    }
+
+    private String upsertVerificationCode(User user) {
+        String code = String.format("%06d", new Random().nextInt(1000000));
+        VerificationCode vc = codeRepository.findByUser_Id(user.getId())
+                .orElseGet(() -> VerificationCode.builder().user(user).build());
+        vc.setCode(code);
+        vc.setExpiryDate(LocalDateTime.now().plusMinutes(15));
+        codeRepository.save(vc);
+        return code;
     }
 }

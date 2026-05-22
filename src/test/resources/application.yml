@@ -13,3 +13,6 @@ app:
 ai:
   service:
     internal-key: test
+
+MAIL_PASSWORD: test-brevo-key
+MAIL_FROM: test@replai.local

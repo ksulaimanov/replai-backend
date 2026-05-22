@@ -1,6 +1,7 @@
 package com.replai.backend.service;
 
 import com.replai.backend.entity.User;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -21,10 +22,16 @@ public class EmailService {
     @Value("${MAIL_FROM:no-reply@replai.app}")
     private String mailFrom;
 
-    @Value("${MAIL_PASSWORD:}")
+    @Value("${MAIL_PASSWORD}")
     private String brevoApiKey;
 
     private final RestTemplate restTemplate = new RestTemplate();
+
+    @PostConstruct
+    void init() {
+        log.info("Initializing Brevo with key length: {}",
+                brevoApiKey != null ? brevoApiKey.length() : 0);
+    }
 
     public void sendVerificationEmail(User user, String code) {
         HttpHeaders headers = new HttpHeaders();

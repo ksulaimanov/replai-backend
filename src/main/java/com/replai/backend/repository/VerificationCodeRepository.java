@@ -11,4 +11,6 @@ public interface VerificationCodeRepository extends JpaRepository<VerificationCo
     Optional<VerificationCode> findByCode(String code);
 
     Optional<VerificationCode> findByUser_Email(String email);
+
+    Optional<VerificationCode> findByUser_Id(Long userId);
 }
