@@ -20,9 +20,15 @@ public class WebhookController {
             @PathVariable String token,
             @RequestHeader(value = "X-Telegram-Bot-Api-Secret-Token", required = false) String secretToken,
             @RequestBody TelegramWebhookUpdate update) {
-        log.info("Received Telegram webhook for token suffix {}",
-                token.length() > 6 ? token.substring(token.length() - 6) : token);
-        webhookService.processTelegramUpdate(token, secretToken, update);
+        String suffix = token.length() > 6 ? token.substring(token.length() - 6) : token;
+        log.info("Received Telegram webhook for token suffix {}", suffix);
+        try {
+            webhookService.processTelegramUpdate(token, secretToken, update);
+        } catch (IllegalStateException e) {
+            // Channel not registered (e.g. fresh DB after redeploy). Return 200 so Telegram
+            // stops retrying — the update cannot be processed until the bot is re-registered.
+            log.warn("Ignoring Telegram update for unregistered token ...{}: {}", suffix, e.getMessage());
+        }
         return ResponseEntity.ok().build();
     }
 }

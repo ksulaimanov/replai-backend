@@ -22,16 +22,14 @@ public class EmailService {
     @Value("${MAIL_FROM:no-reply@replai.app}")
     private String mailFrom;
 
-    @Value("${MAIL_PASSWORD}")
+    // SpEL trims at injection time — strips \r, \n, spaces before the field is ever read.
+    @Value("#{environment['MAIL_PASSWORD']?.trim()}")
     private String brevoApiKey;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
     @PostConstruct
     void init() {
-        if (brevoApiKey != null) {
-            brevoApiKey = brevoApiKey.trim();
-        }
         log.info("Initializing Brevo with key length: {}",
                 brevoApiKey != null ? brevoApiKey.length() : 0);
     }
@@ -40,7 +38,7 @@ public class EmailService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.set("api-key", brevoApiKey);
+        headers.set("api-key", brevoApiKey != null ? brevoApiKey.trim() : "");
 
         String htmlContent = """
             <div style="font-family: 'Inter', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff;">
