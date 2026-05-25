@@ -7,31 +7,31 @@
 [![Maven](https://img.shields.io/badge/Maven-3.9-C71A36?logo=apachemaven&logoColor=white)](https://maven.apache.org/)
 [![Brevo](https://img.shields.io/badge/Brevo_REST_API-v3-0092FF)](https://developers.brevo.com/)
 
-> REST API-ядро платформы replAI. Управляет аутентификацией, мультитенантными ботами, вебхуками Telegram, базой знаний и аналитикой лидов.
+> The REST API core of the replAI platform. Manages authentication, multi-tenant bots, Telegram webhooks, Knowledge Base (KB), and lead analytics.
 
 ---
 
-## Архитектурные принципы
+## Architectural Principles
 
 ### Stateless File Processing
-Загружаемые файлы баз знаний (PDF, TXT, MD) никогда не сохраняются на диск. Бинарный контент считывается в heap (`byte[]`), и напрямую форвардируется в AI-сервис через `RestTemplate` с `ByteArrayResource` — без `java.io.File`, без временных директорий, без утечки данных клиентов на сервере.
+Knowledge Base files (PDF, TXT, MD) are never persisted to disk. Binary content is read directly into the heap (`byte[]`) without writing to `java.io.File`, eliminating local disk I/O vulnerabilities — and forwarded to the AI service via `RestTemplate` with `ByteArrayResource`. Zero-disk in-memory streaming via `RestTemplate` and `ByteArrayResource` ensures no temporary directories are created and no cross-tenant data leaking occurs on the server.
 
 ```
 MultipartFile → byte[] → ByteArrayResource → HTTP POST /knowledge/upload → ChromaDB
 ```
 
 ### Tenant Isolation
-Каждый арендатор (компания) владеет ровно одним ботом. Все запросы проходят через `SecurityUtils.getCurrentUserEmail()` → `botRepository.findByOwner_Email()` — данные чужих компаний физически недостижимы без изменения токена.
+Multi-tenant isolation: Each tenant (company) owns exactly one bot. All requests pass through `SecurityUtils.getCurrentUserEmail()` → `botRepository.findByOwner_Email()` — another company's data is physically unreachable without tampering with the JWT token.
 
 ### Telegram Webhook Pipeline
 
-Асинхронный трёхфазный пайплайн обработки входящего сообщения Telegram:
+Asynchronous Three-Phase Pipeline for processing an incoming Telegram message:
 
 ```
 WebhookController.handleTelegramWebhook()
   │
   ├─ [Phase 1 — @Transactional] WebhookPersistenceService.persistIncoming()
-  │    ├─ Валидация X-Telegram-Bot-Api-Secret-Token (→ 403 при несовпадении)
+  │    ├─ Validate X-Telegram-Bot-Api-Secret-Token (→ 403 on mismatch)
   │    ├─ find/create Chat
   │    ├─ save incoming Message
   │    └─ extractLead (regex → Lead entity)
@@ -44,52 +44,53 @@ WebhookController.handleTelegramWebhook()
   │    └─ if is_lead → Chat.status=HOT_LEAD, Chat.leadSummary=...
   │
   └─ [Phase 4 — NO TRANSACTION] TelegramService.sendMessage()
-       └─ split by ||| → отправить каждую часть
+       └─ split by ||| → send each part as a separate message
 ```
 
-AI-запрос выполняется **вне транзакции** — соединение с БД не висит 30 секунд.
+The AI request is executed **outside any transaction** — the database connection is not held open for the duration of the LLM call.
 
-### 200 OK Guard (Защита от ретраев Telegram)
-Telegram повторяет вебхук до тех пор, пока не получит 2xx. При `IllegalStateException` (незарегистрированный токен) контроллер пишет `WARN` в лог и возвращает `200 OK` — Telegram перестаёт слать повторы.
+### 200 OK Guard — Request Flooding Protection
+
+Telegram retries a webhook delivery until it receives a 2xx response. On `IllegalStateException` (unregistered token), the controller logs a `WARN` and returns `200 OK` — preventing Telegram from endlessly re-delivering the same update. This is the '200 OK Guard' against request flooding via retry storms.
 
 ### SpEL Secret Injection
-`MAIL_PASSWORD` инжектируется через SpEL-выражение с `?.trim()` прямо на этапе инициализации бина:
+`MAIL_PASSWORD` is injected via a SpEL expression with `?.trim()` at bean initialization time:
 ```java
 @Value("#{environment['MAIL_PASSWORD']?.trim()}")
 private String brevoApiKey;
 ```
-Лишние `\r`, `\n` и пробелы удаляются **до** первого использования.
+Trailing `\r`, `\n`, and whitespace characters are stripped **before** the value is first used.
 
 ---
 
-## API контракты
+## API Contracts
 
-### Аутентификация
+### Authentication
 
-| Метод | Путь | Описание |
+| Method | Path | Description |
 |---|---|---|
-| `POST` | `/api/auth/register` | Регистрация + отправка email-кода |
-| `POST` | `/api/auth/login` | Вход → JWT |
-| `POST` | `/api/auth/verify` | Подтверждение email |
-| `POST` | `/api/auth/resend-code` | Повторная отправка кода |
+| `POST` | `/api/auth/register` | Register account + send email verification code |
+| `POST` | `/api/auth/login` | Authenticate → JWT |
+| `POST` | `/api/auth/verify` | Confirm email address |
+| `POST` | `/api/auth/resend-code` | Resend verification code |
 
-### Бот и файлы (требует Bearer JWT)
+### Bot & Files (requires Bearer JWT)
 
-| Метод | Путь | Описание |
+| Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/bot/config` | Конфигурация бота |
-| `PUT` | `/api/bot/config` | Обновление имени/промпта |
-| `GET` | `/api/bot/files` | Список файлов базы знаний |
-| `POST` | `/api/bot/files` | Загрузка файла (max 5 MB, .txt/.md/.pdf) |
-| `DELETE` | `/api/bot/files/{id}` | Удаление файла |
-| `GET` | `/api/bot/leads` | Список лидов с историей чата |
-| `GET` | `/api/bot/analytics` | Аналитика конверсии |
+| `GET` | `/api/bot/config` | Retrieve bot configuration |
+| `PUT` | `/api/bot/config` | Update bot name / system prompt |
+| `GET` | `/api/bot/files` | List Knowledge Base (KB) files |
+| `POST` | `/api/bot/files` | Upload KB file (max 5 MB, .txt/.md/.pdf) |
+| `DELETE` | `/api/bot/files/{id}` | Delete KB file |
+| `GET` | `/api/bot/leads` | List leads with full chat history |
+| `GET` | `/api/bot/analytics` | Conversion analytics |
 
-### Вебхук Telegram (публичный)
+### Telegram Webhook (public)
 
-| Метод | Путь | Описание |
+| Method | Path | Description |
 |---|---|---|
-| `POST` | `/api/webhook/telegram/{token}` | Входящее обновление Telegram |
+| `POST` | `/api/webhook/telegram/{token}` | Incoming Telegram update |
 
 ---
 
@@ -109,15 +110,15 @@ User (1) ──── (1) Bot
 
 ---
 
-## Локальная разработка
+## Local Development
 
-### Зависимости
+### Prerequisites
 
 - Java 17+
 - Maven 3.9+
-- PostgreSQL 15 (или Docker)
+- PostgreSQL 15 (or Docker)
 
-### Запуск PostgreSQL через Docker
+### Start PostgreSQL via Docker
 
 ```bash
 docker run -d --name replai-pg \
@@ -127,7 +128,7 @@ docker run -d --name replai-pg \
   -p 5433:5432 postgres:15
 ```
 
-### Переменные окружения (`.env` или системные)
+### Environment Variables (`.env` or system env)
 
 ```env
 DATABASE_URL=jdbc:postgresql://localhost:5433/replai-postgres
@@ -140,16 +141,16 @@ AI_SERVICE_INTERNAL_KEY=secret
 AI_SERVICE_MOCK=true
 ```
 
-### Сборка и запуск
+### Build & Run
 
 ```bash
-# Запуск в dev-режиме (с mock AI)
+# Run in dev mode (with mock AI)
 mvn spring-boot:run
 
-# Запуск тестов
+# Run tests
 mvn test
 
-# Сборка JAR
+# Build JAR
 mvn clean package -DskipTests
 java -jar target/backend-0.0.1-SNAPSHOT.jar
 ```
@@ -159,35 +160,35 @@ java -jar target/backend-0.0.1-SNAPSHOT.jar
 ## Docker
 
 ```bash
-# Сборка образа
+# Build image
 docker build -t replai-backend:latest .
 
-# Запуск (требует переменных окружения)
+# Run (requires environment variables)
 docker run -d --name replai-backend \
   --env-file .env \
   -p 8080:8080 \
   replai-backend:latest
 ```
 
-Для продакшена используйте `docker-compose.yml` из корневого репозитория.
+For production use the `docker-compose.yml` from the root repository.
 
 ---
 
-## Структура проекта
+## Project Structure
 
 ```
 src/main/java/com/replai/backend/
-├── controller/         REST-эндпоинты
-├── service/            Бизнес-логика
-├── entity/             JPA-сущности
-├── repository/         Spring Data репозитории
-├── dto/                Request/Response DTO
-├── security/           JWT-фильтр, SecurityConfig, SecurityUtils
-└── exception/          Кастомные исключения
+├── controller/         REST endpoints
+├── service/            Business logic
+├── entity/             JPA entities
+├── repository/         Spring Data repositories
+├── dto/                Request/Response DTOs
+├── security/           JWT filter, SecurityConfig, SecurityUtils
+└── exception/          Custom exceptions
 ```
 
 ---
 
-## Контакты
+## Contact
 
 Email: [ksulaimanov.dev@gmail.com](mailto:ksulaimanov.dev@gmail.com) · Telegram: [@ksulaimanov](https://t.me/ksulaimanov)
